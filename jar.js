@@ -15,6 +15,12 @@ export function nextColor(usedCount) {
   return PALETTE[usedCount % PALETTE.length];
 }
 
+/** Nama bawaan sesi baru untuk sebuah host: host itu sendiri, lalu host + nomor urut. */
+export function nextSessionName(sessions, host) {
+  const count = sessions.filter((s) => s.host === host).length;
+  return count === 0 ? host : `${host} ${count + 1}`;
+}
+
 export function hostOf(url) {
   try {
     return new URL(url).hostname;

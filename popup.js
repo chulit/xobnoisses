@@ -20,16 +20,21 @@ async function refresh() {
 function render() {
   const cur = $("#current");
   const saveBtn = $("#btn-save");
+  const newCurrentBtn = $("#btn-new-current");
   const tab = state.activeTab;
-  if (tab && tab.host) {
+  if (tab && tab.host && /^https?:/.test(tab.url)) {
     const owner = tab.sessionId
       ? state.sessions.find((s) => s.id === tab.sessionId)
       : null;
     cur.textContent = `${tab.title || tab.host} · ${tab.host}${owner ? ` · sesi “${owner.name}”` : " · sesi utama"}`;
     saveBtn.disabled = false;
+    newCurrentBtn.disabled = false;
+    newCurrentBtn.textContent = `Buka sesi baru untuk ${tab.host}`;
   } else {
-    cur.textContent = "Buka sebuah situs dulu untuk menyimpan sesi.";
+    cur.textContent = "Buka sebuah situs dulu untuk membuat sesi.";
     saveBtn.disabled = true;
+    newCurrentBtn.disabled = true;
+    newCurrentBtn.textContent = "Buka sesi baru untuk situs ini";
   }
 
   const list = $("#list");
@@ -38,7 +43,7 @@ function render() {
     const empty = document.createElement("div");
     empty.className = "empty";
     empty.textContent =
-      "Belum ada sesi. Login ke sebuah situs, lalu klik “Simpan tab ini sebagai sesi” — atau buat sesi kosong dan login di dalamnya.";
+      "Belum ada sesi. Dari sebuah situs, klik “Buka sesi baru” untuk membuka situs yang sama sebagai user lain — atau simpan tab ini sebagai sesi.";
     list.appendChild(empty);
     return;
   }
@@ -175,7 +180,7 @@ function openSaveModal() {
 function openNewModal() {
   openModal((m) => {
     const h = document.createElement("h2");
-    h.textContent = "Sesi kosong baru";
+    h.textContent = "Sesi kosong untuk situs lain";
     const p = document.createElement("p");
     p.textContent = "Tab baru akan terbuka dengan keadaan belum login — silakan login di dalamnya; sesinya tersimpan otomatis.";
     const l1 = document.createElement("label");
@@ -250,6 +255,17 @@ function openDeleteModal(s) {
 
 $("#btn-save").addEventListener("click", openSaveModal);
 $("#btn-new").addEventListener("click", openNewModal);
+$("#btn-new-current").addEventListener("click", async () => {
+  const btn = $("#btn-new-current");
+  btn.disabled = true;
+  try {
+    await call({ type: "createNewForCurrentTab" });
+    window.close();
+  } catch (e) {
+    $("#current").textContent = `Error: ${e.message ?? e}`;
+    btn.disabled = false;
+  }
+});
 
 refresh().catch((e) => {
   $("#current").textContent = `Error: ${e.message ?? e}`;

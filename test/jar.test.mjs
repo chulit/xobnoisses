@@ -5,6 +5,7 @@ import {
   cookieMatchesHost,
   cookiesForHost,
   hostOf,
+  nextSessionName,
   normalizeSiteUrl,
   toSetDetails,
   toStoredCookie,
@@ -14,6 +15,21 @@ test("normalizeSiteUrl menambah https", () => {
   assert.equal(normalizeSiteUrl("mail.google.com"), "https://mail.google.com");
   assert.equal(normalizeSiteUrl("https://x.com/a"), "https://x.com/a");
   assert.equal(normalizeSiteUrl("  "), "");
+});
+
+test("nextSessionName: nama bawaan sesi baru per host", () => {
+  assert.equal(nextSessionName([], "mail.google.com"), "mail.google.com");
+  assert.equal(
+    nextSessionName([{ host: "mail.google.com" }], "mail.google.com"),
+    "mail.google.com 2",
+  );
+  assert.equal(
+    nextSessionName(
+      [{ host: "mail.google.com" }, { host: "mail.google.com" }, { host: "x.com" }],
+      "mail.google.com",
+    ),
+    "mail.google.com 3",
+  );
 });
 
 test("hostOf", () => {

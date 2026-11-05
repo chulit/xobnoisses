@@ -10,6 +10,7 @@ import {
   cookieUrl,
   hostOf,
   nextColor,
+  nextSessionName,
   normalizeSiteUrl,
   toSetDetails,
   toStoredCookie,
@@ -156,6 +157,36 @@ async function saveCurrentTabAsSession(name) {
   return site.id;
 }
 
+/**
+ * Alur utama klasik: dari tab situs A yang sedang aktif, lahirkan sesi baru
+ * untuk situs yang sama. Cookie tab lama disimpan dulu ke pemiliknya oleh
+ * swapJarTo, jadi sesi tab sebelumnya tidak hilang; tab baru dibuka di URL
+ * yang sama persis dengan jar kosong untuk login sebagai user lain.
+ */
+async function createNewSessionForCurrentTab() {
+  const tab = await activeTab();
+  if (!tab || !tab.url) throw new Error("Tidak ada tab aktif");
+  const host = hostOf(tab.url);
+  if (!host || !/^https?:$/.test(new URL(tab.url).protocol)) {
+    throw new Error("Sesi baru hanya bisa dibuat dari halaman web (http/https)");
+  }
+  await ensureJarForTab(tab); // samakan jar browser dengan pemilik tab ini dulu
+  const { sessions, mainJars } = await loadLocal();
+  const site = {
+    id: crypto.randomUUID(),
+    name: nextSessionName(sessions, host),
+    color: nextColor(sessions.length),
+    homeUrl: tab.url,
+    host,
+    cookies: [],
+    createdAt: Date.now(),
+  };
+  sessions.push(site);
+  await saveLocal(sessions, mainJars);
+  await openSession(site.id);
+  return site.id;
+}
+
 async function createEmptySession(rawUrl, name) {
   const homeUrl = normalizeSiteUrl(rawUrl);
   const host = hostOf(homeUrl);
@@ -255,6 +286,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         return serialized(() => saveCurrentTabAsSession(msg.name));
       case "createEmpty":
         return serialized(() => createEmptySession(msg.url, msg.name));
+      case "createNewForCurrentTab":
+        return serialized(() => createNewSessionForCurrentTab());
       case "updateSession": {
         const { sessions, mainJars } = await loadLocal();
         const site = sessions.find((s) => s.id === msg.sessionId);

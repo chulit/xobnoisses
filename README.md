@@ -17,12 +17,19 @@ Ekstensi ini dipasang sebagai unpacked extension:
 
 ## Cara Pakai
 
+Alur utamanya persis seperti ini:
+
 1. Buka sebuah situs dan login seperti biasa. Ini adalah **sesi utama**.
-2. Klik ikon xoBnoisseS.
-3. Klik **Simpan tab ini sebagai sesi**, beri nama, lalu simpan. Cookie login untuk host situs tersebut disimpan sebagai sesi baru.
-4. Untuk akun lain pada situs yang sama, buat **Sesi kosong baru** atau simpan tab setelah login dengan akun tersebut.
-5. Klik nama sesi di popup untuk membuka situsnya memakai login sesi tersebut. Jika tab sesi sudah terbuka, tab itu akan difokuskan.
-6. Gunakan ikon ✎ untuk mengubah nama/warna sesi dan ikon 🗑 untuk menghapus sesi.
+2. Klik ikon xoBnoisseS, lalu klik **Buka sesi baru untuk _situs ini_**.
+3. Tab baru langsung terbuka di halaman yang sama persis, dalam keadaan bersih/belum login — silakan login sebagai user lain di sana. Sesi tab sebelumnya tidak hilang: cookienya disimpan atas nama sesi/tab itu dan dipulihkan saat kamu kembali mengklik tab tersebut.
+4. Ulangi untuk user ketiga, keempat, dan seterusnya; setiap sesi baru otomatis bernama host situsnya (lalu `host 2`, `host 3`, …) dan bisa diganti namanya kapan saja.
+
+Cara lain membuat sesi:
+
+- **Simpan tab ini sebagai sesi** — membekukan login yang sedang aktif di tab saat ini menjadi sesi bernama, tanpa membuka tab baru.
+- **Sesi kosong untuk situs lain** — membuat sesi dari alamat yang diketik manual.
+
+Klik nama sesi di popup untuk membuka situsnya memakai login sesi tersebut; jika tab sesi sudah terbuka, tab itu akan difokuskan. Gunakan ikon ✎ untuk mengubah nama/warna sesi dan ikon 🗑 untuk menghapus sesi.
 
 Sesi dikelompokkan menurut situsnya, sehingga beberapa akun untuk satu layanan dapat tampil bersama dalam satu grup.
 
