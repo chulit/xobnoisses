@@ -1,0 +1,1 @@
+{"action":{"default_popup":"popup.html","default_title":"xoBnoisseS"},"background":{"service_worker":"background.js","type":"module"},"description":"Multi-login ala SessionBox klasik: user berbeda di tab berbeda, di dalam Chrome kamu.","host_permissions":["<all_urls>"],"manifest_version":3,"name":"xoBnoisseS","permissions":["cookies","storage","tabs"],"version":"0.1.0"}

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <title>xoBnoisseS</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <span class="logo">xo<span>B</span>noisseS</span>
+      <span class="tag">multi-login klasik</span>
+    </header>
+
+    <section>
+      <div class="label">Tab saat ini</div>
+      <div id="current" class="current">—</div>
+      <button id="btn-save" class="primary block">Simpan tab ini sebagai sesi</button>
+      <button id="btn-new" class="block">+ Sesi kosong baru</button>
+    </section>
+
+    <section>
+      <div class="label">Sesi tersimpan</div>
+      <div id="list"></div>
+    </section>
+
+    <div id="modal-backdrop" class="hidden">
+      <div id="modal"></div>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

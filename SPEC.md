@@ -40,6 +40,15 @@ Proxy per sesi · fingerprint/anti-detect · sinkronisasi cloud · berbagi sesi/
 - **M2 — Sesi**: model data + panel samping (grup per situs) + CRUD sesi + dua jalur pembuatan (termasuk salin cookie antar-partisi) + lencana warna/nama di tab.
 - **M3 — Pulih & kemas**: pemulihan tab saat restart, unduhan, favicon, DMG arm64 via electron-builder, uji manual di Mac user.
 
+## Addendum 2026-11-05 — koreksi bentuk: ekstensi adalah cangkang utama
+
+Setelah MVP Electron jadi, user mengoreksi: "seperti klasik" yang ia maksud **termasuk bentuknya — ekstensi di browsernya**, bukan aplikasi terpisah. Maka ditambahkan cangkang kedua di folder `extension/` (Manifest V3) yang kini menjadi bentuk utama:
+
+- Popup = padanan panel sesi (grup per situs, simpan dari tab, sesi kosong, edit/hapus).
+- Mekanisme = yang asli dipakai klasik: **tukar cookie jar per tab aktif** (Chrome tidak punya container; jar per profil hanya satu). State: `chrome.storage.local` (sesi + jar utama per host), `chrome.storage.session` (tab↔sesi, jar termuat per host); swap diserialkan di service worker pada `tabs.onActivated`/`onUpdated`/`windows.onFocusChanged`.
+- Keterbatasan yang diterima secara sadar (paritas klasik): hanya sesi tab aktif yang hidup; cookie domain induk terbawa antar sesi subdomain.
+- Aplikasi Electron tetap dipertahankan sebagai cangkang alternatif dengan isolasi partisi asli (lebih kuat, tapi aplikasi terpisah).
+
 ## Latar teknis (dari REA SessionBox One, 2026-11-05)
 
 - Chrome tidak punya container per tab (cookie store per profil saja); ekstensi klasik memakai trik tukar cookie. Partisi Electron (`session.fromPartition('persist:…')`) adalah padanan container Firefox di level sesi Chromium — isolasi asli, banyak sesi situs yang sama bisa aktif bersamaan.

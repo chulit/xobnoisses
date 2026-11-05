@@ -1,8 +1,36 @@
 # xoBnoisseS
 
-Browser multi-login ala **SessionBox klasik**: login user berbeda di tab berbeda, dalam satu jendela — tanpa cloud, tanpa fingerprint, tanpa proxy. Yang dipakai hanya isolasi sesi asli Chromium: setiap sesi punya partisi persistennya sendiri.
+Multi-login ala **SessionBox klasik**: login user berbeda di tab berbeda — tanpa cloud, tanpa fingerprint, tanpa proxy.
 
 Nama adalah "SessionBox" dibalik. Implementasi tulis-ulang bersih (clean-room) berdasarkan peta fitur dari reverse-engineering SessionBox One (lihat `SPEC.md`).
+
+Ada dua cangkang dengan model sesi yang sama:
+
+1. **Ekstensi Chrome (`extension/`)** — bentuk utamanya, persis klasik: ekstensi menumpang di Chrome kamu.
+2. **Aplikasi Electron (folder akar)** — browser mandiri dengan isolasi partisi asli Chromium.
+
+## Ekstensi Chrome
+
+### Memasang (Load unpacked, tanpa Web Store)
+
+1. Buka `chrome://extensions`, nyalakan **Developer mode** (kanan atas).
+2. Klik **Load unpacked**, pilih folder `extension/` dari repo ini.
+3. Sematkan ikon xoBnoisseS di toolbar.
+
+### Cara kerja (mekanisme klasik, apa adanya)
+
+Chrome hanya punya satu cookie jar per profil, jadi ekstensi ini bekerja seperti SessionBox klasik: setiap sesi menyimpan salinan cookie-nya di penyimpanan ekstensi, dan **saat tab sebuah sesi menjadi aktif, isi cookie jar browser untuk host itu ditukar** dengan milik sesi tersebut (isi lama disimpan kembali ke pemilik sebelumnya). Sesi utama = jar asli browser.
+
+Konsekuensi jujurnya:
+
+- Hanya sesi pada **tab yang sedang aktif** yang "hidup" pada satu saat; tab latar dari sesi lain tidak mengirim cookie-nya sampai tab itu diaktifkan. Persis keterbatasan versi klasik.
+- Sesi dikunci ke host situsnya; cookie domain induk (mis. `.google.com`) ikut terbawa antar sesi subdomain yang berbagi domain induk yang sama.
+
+### Pakai
+
+Klik ikon ekstensi → popup berisi: tab saat ini + tombol **Simpan tab ini sebagai sesi**, **+ Sesi kosong baru**, dan daftar sesi berkelompok per situs. Klik sesi untuk membukanya (tab yang sudah ada akan difokuskan). ✎ ganti nama/warna, 🗑 hapus sesi.
+
+## Aplikasi Electron
 
 ## Model
 
