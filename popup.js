@@ -106,8 +106,12 @@ function render() {
       });
       item.append(edit, del);
       item.addEventListener("click", async () => {
-        await call({ type: "openSession", sessionId: s.id });
-        window.close();
+        try {
+          await call({ type: "openSession", sessionId: s.id });
+          window.close();
+        } catch (e) {
+          $("#current").textContent = `Error: ${e.message ?? e}`;
+        }
       });
       group.appendChild(item);
     }

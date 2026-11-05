@@ -109,10 +109,10 @@ async function activeTab() {
   return tab;
 }
 
-async function openSession(sessionId) {
+async function openSession(sessionId, windowId) {
   const { sessions } = await loadLocal();
   const site = sessions.find((s) => s.id === sessionId);
-  if (!site) return;
+  if (!site) throw new Error("Sesi tidak ditemukan");
   // Fokuskan tab sesi yang sudah ada.
   const { tabSession } = await loadRuntime();
   const existingId = Object.keys(tabSession).find((id) => tabSession[id] === sessionId);
@@ -120,18 +120,32 @@ async function openSession(sessionId) {
     const tabId = Number(existingId);
     try {
       const tab = await chrome.tabs.get(tabId);
-      await chrome.windows.update(tab.windowId, { focused: true });
+      const win = await chrome.windows.get(tab.windowId);
+      const focusProps = { focused: true };
+      // Jendela yang diminimalkan harus dipulihkan agar tabnya terlihat.
+      if (win.state === "minimized") focusProps.state = "normal";
+      await chrome.windows.update(tab.windowId, focusProps);
       await chrome.tabs.update(tabId, { active: true });
       await ensureJarForTab(tab);
-      return;
+      return tabId;
     } catch { /* tab sudah hilang — buat baru */ }
   }
-  const tab = await chrome.tabs.create({ url: "about:blank" });
+  // Kunci jendela tujuan secara eksplisit: dari service worker, Chrome bebas
+  // membuka tab di jendela lain (display/Space lain) bila windowId tidak
+  // diberikan — tab lahir tapi tidak terlihat oleh user.
+  const createProps = { url: "about:blank", active: true };
+  if (Number.isInteger(windowId)) createProps.windowId = windowId;
+  const tab = await chrome.tabs.create(createProps);
   const runtime = await loadRuntime();
   runtime.tabSession[String(tab.id)] = sessionId;
   await saveRuntime(runtime.tabSession, runtime.loadedJar);
   await swapJarTo(site.host, sessionId);
   await chrome.tabs.update(tab.id, { url: site.homeUrl });
+  // Verifikasi tabnya benar-benar ada; gagal di sini harus tampil sebagai
+  // error di popup, bukan diam-diam dianggap berhasil.
+  const check = await chrome.tabs.get(tab.id);
+  if (!check) throw new Error("Tab baru gagal dibuat");
+  return tab.id;
 }
 
 async function saveCurrentTabAsSession(name) {
@@ -183,7 +197,7 @@ async function createNewSessionForCurrentTab() {
   };
   sessions.push(site);
   await saveLocal(sessions, mainJars);
-  await openSession(site.id);
+  await openSession(site.id, tab.windowId);
   return site.id;
 }
 
@@ -203,7 +217,8 @@ async function createEmptySession(rawUrl, name) {
   };
   sessions.push(site);
   await saveLocal(sessions, mainJars);
-  await openSession(site.id);
+  const current = await activeTab();
+  await openSession(site.id, current?.windowId);
   return site.id;
 }
 
@@ -281,7 +296,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       case "getState":
         return getState();
       case "openSession":
-        return serialized(() => openSession(msg.sessionId));
+        return serialized(async () => {
+          const tab = await activeTab();
+          return openSession(msg.sessionId, tab?.windowId);
+        });
       case "saveCurrentTab":
         return serialized(() => saveCurrentTabAsSession(msg.name));
       case "createEmpty":
