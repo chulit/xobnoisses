@@ -1,63 +1,64 @@
 # xoBnoisseS
 
-Multi-login ala **SessionBox klasik**: login user berbeda di tab berbeda — tanpa cloud, tanpa fingerprint, tanpa proxy.
+Ekstensi Chrome untuk multi-login ala **SessionBox klasik**: login sebagai user berbeda pada tab berbeda di Chrome yang sama — tanpa cloud, tanpa fingerprint, dan tanpa proxy.
 
-Nama adalah "SessionBox" dibalik. Implementasi tulis-ulang bersih (clean-room) berdasarkan peta fitur dari reverse-engineering SessionBox One (lihat `SPEC.md`).
+Nama **xoBnoisseS** adalah “SessionBox” dibalik. Proyek ini merupakan implementasi tulis-ulang bersih (clean-room), bukan salinan kode SessionBox.
 
-Ada dua cangkang dengan model sesi yang sama:
+## Memasang
 
-1. **Ekstensi Chrome (`extension/`)** — bentuk utamanya, persis klasik: ekstensi menumpang di Chrome kamu.
-2. **Aplikasi Electron (folder akar)** — browser mandiri dengan isolasi partisi asli Chromium.
+Ekstensi ini dipasang sebagai unpacked extension:
 
-## Ekstensi Chrome
+1. Clone repo ini atau unduh sebagai ZIP lalu ekstrak.
+2. Buka `chrome://extensions`.
+3. Nyalakan **Developer mode** di kanan atas.
+4. Klik **Load unpacked**.
+5. Pilih folder utama repo ini — folder yang berisi `manifest.json`.
+6. Sematkan ikon xoBnoisseS di toolbar Chrome.
 
-### Memasang (Load unpacked, tanpa Web Store)
+## Cara Pakai
 
-1. Buka `chrome://extensions`, nyalakan **Developer mode** (kanan atas).
-2. Klik **Load unpacked**, pilih folder `extension/` dari repo ini.
-3. Sematkan ikon xoBnoisseS di toolbar.
+1. Buka sebuah situs dan login seperti biasa. Ini adalah **sesi utama**.
+2. Klik ikon xoBnoisseS.
+3. Klik **Simpan tab ini sebagai sesi**, beri nama, lalu simpan. Cookie login untuk host situs tersebut disimpan sebagai sesi baru.
+4. Untuk akun lain pada situs yang sama, buat **Sesi kosong baru** atau simpan tab setelah login dengan akun tersebut.
+5. Klik nama sesi di popup untuk membuka situsnya memakai login sesi tersebut. Jika tab sesi sudah terbuka, tab itu akan difokuskan.
+6. Gunakan ikon ✎ untuk mengubah nama/warna sesi dan ikon 🗑 untuk menghapus sesi.
 
-### Cara kerja (mekanisme klasik, apa adanya)
+Sesi dikelompokkan menurut situsnya, sehingga beberapa akun untuk satu layanan dapat tampil bersama dalam satu grup.
 
-Chrome hanya punya satu cookie jar per profil, jadi ekstensi ini bekerja seperti SessionBox klasik: setiap sesi menyimpan salinan cookie-nya di penyimpanan ekstensi, dan **saat tab sebuah sesi menjadi aktif, isi cookie jar browser untuk host itu ditukar** dengan milik sesi tersebut (isi lama disimpan kembali ke pemilik sebelumnya). Sesi utama = jar asli browser.
+## Cara Kerja
 
-Konsekuensi jujurnya:
+Chrome tidak menyediakan container per tab seperti Firefox. Satu profil Chrome hanya memiliki satu cookie jar, sehingga xoBnoisseS memakai mekanisme yang sama seperti ekstensi multi-login klasik:
 
-- Hanya sesi pada **tab yang sedang aktif** yang "hidup" pada satu saat; tab latar dari sesi lain tidak mengirim cookie-nya sampai tab itu diaktifkan. Persis keterbatasan versi klasik.
-- Sesi dikunci ke host situsnya; cookie domain induk (mis. `.google.com`) ikut terbawa antar sesi subdomain yang berbagi domain induk yang sama.
+- Setiap sesi menyimpan salinan cookie untuk host situsnya di penyimpanan lokal ekstensi.
+- Ketika tab milik sebuah sesi menjadi aktif, service worker menyimpan isi cookie jar browser saat ini ke pemilik sebelumnya, lalu memasukkan cookie milik sesi aktif.
+- Tab tanpa sesi menggunakan cookie jar asli Chrome sebagai sesi utama.
+- Pemetaan tab ke sesi disimpan di `chrome.storage.session`; data sesi disimpan di `chrome.storage.local`.
 
-### Pakai
+## Batasan
 
-Klik ikon ekstensi → popup berisi: tab saat ini + tombol **Simpan tab ini sebagai sesi**, **+ Sesi kosong baru**, dan daftar sesi berkelompok per situs. Klik sesi untuk membukanya (tab yang sudah ada akan difokuskan). ✎ ganti nama/warna, 🗑 hapus sesi.
+Ini adalah batasan mekanisme cookie swapping di Chrome, bukan container asli:
 
-## Aplikasi Electron
+- Hanya sesi pada **tab yang sedang aktif** yang datanya termuat pada satu waktu. Tab latar dari sesi lain baru memakai cookienya setelah tab tersebut diaktifkan kembali.
+- Sesi terikat pada host situsnya.
+- Cookie milik domain induk, misalnya `.google.com`, dapat berkaitan dengan beberapa subdomain yang berbagi domain induk yang sama.
+- Menutup atau memperbarui ekstensi ketika beberapa sesi sedang digunakan dapat memerlukan tab terkait dibuka/diaktifkan ulang agar cookie aktifnya disinkronkan kembali.
 
-## Model
+## Pengembangan
 
-- **Sesi utama** — penjelajahan biasa (partisi `persist:xob-main`).
-- **Sesi tambahan** — terikat satu situs, persis klasik: {nama, warna, URL rumah, partisi sendiri}. Dikelompokkan per situs di panel samping.
-- **Dua jalur membuat sesi**: (1) *Simpan tab ini sebagai sesi* — cookie domain situs tab aktif disalin dari partisi sumber ke partisi sesi baru; (2) *Sesi kosong baru* — tab bersih untuk login fresh.
-- Popup (mis. OAuth) lahir sebagai tab baru **di partisi yang sama**.
-- Tab dipulihkan saat aplikasi dibuka kembali.
+Tidak ada proses build dan tidak ada dependensi runtime. File ekstensi langsung dimuat oleh Chrome.
 
-## Menjalankan (pengembangan)
+Menjalankan pemeriksaan sintaks dan tes fungsi cookie jar:
 
 ```bash
-npm install
-npm start        # build + jalankan Electron
-npm test         # typecheck + tes unit fungsi murni (node --test)
-npm run dist:mac # paket macOS arm64 (.zip berisi .app)
+npm run check
+npm test
 ```
 
-## Memasang di Mac
+Struktur utama:
 
-Unzip `xoBnoisseS-0.1.0-arm64-mac.zip`, pindahkan `xoBnoisseS.app` ke Applications, lalu buka lewat **klik kanan → Open** (aplikasi belum ditandatangani Apple, jadi Gatekeeper menolak buka biasa pertama kali).
-
-Data tersimpan lokal di `~/Library/Application Support/xobnoisses/` (`sessions.json`, `tabs.json`, folder `Partitions/` per sesi).
-
-## Keterbatasan v1 (disengaja)
-
-- Ikon aplikasi masih ikon bawaan Electron; belum ada ikon kustom.
-- Izin kamera/mikrofon/notifikasi ditolak semua.
-- `Cmd+W` masih perilaku bawaan menu macOS (tutup jendela), belum dialihkan ke tutup tab.
-- Di luar cakupan: proxy per sesi, fingerprint, sinkronisasi cloud, ekstensi pendamping, sesi sementara, build Windows/Linux. Lihat `SPEC.md` untuk rancangan lengkapnya.
+- `manifest.json` — konfigurasi Manifest V3
+- `background.js` — service worker dan mesin pergantian cookie antar sesi
+- `jar.js` — logika murni cookie jar yang dapat diuji
+- `popup.html`, `popup.css`, `popup.js` — antarmuka popup
+- `test/` — tes unit untuk logika cookie jar
