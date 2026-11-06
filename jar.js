@@ -49,8 +49,44 @@ export function cookiesForHost(cookies, host) {
   return cookies.filter((c) => cookieMatchesHost(c, host));
 }
 
+/**
+ * Cookie host-only atau cookie domain? Chrome melaporkan cookie domain
+ * dengan domain berawalan titik (".example.com") dan hostOnly=false;
+ * cookie host-only tanpa titik dan hostOnly=true. Data simpanan lama
+ * (sebelum hostOnly disimpan) disimpulkan dari titiknya.
+ */
+export function isHostOnlyCookie(c) {
+  if (typeof c.hostOnly === "boolean") return c.hostOnly;
+  return !(c.domain ?? "").startsWith(".");
+}
+
 export function cookieKey(c) {
-  return `${c.name}${c.domain ?? ""}${c.path ?? "/"}`;
+  const d = (c.domain ?? "").replace(/^\./, "").toLowerCase();
+  return `${c.name}${d}${c.path ?? "/"}${isHostOnlyCookie(c) ? "h" : "d"}`;
+}
+
+/** Kunci slot aplikasi: nama + domain (tanpa titik) + path, tanpa varian. */
+function slotKey(c) {
+  const d = (c.domain ?? "").replace(/^\./, "").toLowerCase();
+  return `${c.name}${d}${c.path ?? "/"}`;
+}
+
+/**
+ * Satu slot (nama+domain+path) hanya boleh diisi SATU cookie. Bila ada dua
+ * varian sekaligus (host-only dan domain) — keadaan rusak akibat bug lama —
+ * yang dipertahankan adalah varian host-only, yaitu yang ditulis server
+ * sendiri; varian domain adalah sisa salinan ekstensi yang basi.
+ */
+export function dedupeCookies(cookies) {
+  const bySlot = new Map();
+  for (const c of cookies) {
+    const key = slotKey(c);
+    const kept = bySlot.get(key);
+    if (!kept || (isHostOnlyCookie(c) && !isHostOnlyCookie(kept))) {
+      bySlot.set(key, c);
+    }
+  }
+  return [...bySlot.values()];
 }
 
 /**
@@ -58,7 +94,8 @@ export function cookieKey(c) {
  * disaring ke host) menuju isi jar pemilik tujuan (target).
  * Hasil: daftar cookie yang dihapus dan yang ditulis.
  */
-export function computeSwap(current, target) {
+export function computeSwap(current, rawTarget) {
+  const target = dedupeCookies(rawTarget);
   const targetKeys = new Set(target.map(cookieKey));
   const currentByKey = new Map(current.map((c) => [cookieKey(c), c]));
   const toRemove = current.filter((c) => {
@@ -85,11 +122,15 @@ export function toSetDetails(cookie) {
     url: cookieUrl(cookie),
     name: cookie.name,
     value: cookie.value,
-    domain: cookie.domain,
     path: cookie.path ?? "/",
     secure: Boolean(cookie.secure),
     httpOnly: Boolean(cookie.httpOnly),
   };
+  // PENTING: domain hanya diteruskan untuk cookie domain. Meneruskan domain
+  // untuk cookie host-only mengubahnya menjadi cookie domain (".host") —
+  // cookie asli server (host-only) lalu lahir kembali di sampingnya dan
+  // situs menerima dua cookie se nama dengan nilai berbeda.
+  if (!isHostOnlyCookie(cookie)) details.domain = cookie.domain;
   if (cookie.expirationDate) details.expirationDate = cookie.expirationDate;
   if (["unspecified", "no_restriction", "lax", "strict"].includes(cookie.sameSite)) {
     details.sameSite = cookie.sameSite;
@@ -106,6 +147,7 @@ export function toStoredCookie(cookie) {
     path: cookie.path ?? "/",
     secure: Boolean(cookie.secure),
     httpOnly: Boolean(cookie.httpOnly),
+    hostOnly: isHostOnlyCookie(cookie),
   };
   if (cookie.expirationDate) stored.expirationDate = cookie.expirationDate;
   if (cookie.sameSite) stored.sameSite = cookie.sameSite;

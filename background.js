@@ -8,6 +8,7 @@ import {
   computeSwap,
   cookiesForHost,
   cookieUrl,
+  dedupeCookies,
   hostOf,
   nextColor,
   nextSessionName,
@@ -44,17 +45,36 @@ function serialized(fn) {
   return run;
 }
 
+/**
+ * Hapus satu cookie beserta variannya secara tuntas. chrome.cookies.remove
+ * mencocokkan lewat URL dan tidak selalu mengenai varian domain (".host");
+ * menulis ulang cookie yang sama dengan masa berlaku lampau menghapus
+ * persis varian itu (host-only vs domain dibedakan oleh toSetDetails).
+ */
+async function removeCookieCompletely(c) {
+  try {
+    await chrome.cookies.remove({ url: cookieUrl(c), name: c.name });
+  } catch { /* abaikan */ }
+  try {
+    await chrome.cookies.set({ ...toSetDetails(c), value: "", expirationDate: 1 });
+  } catch { /* abaikan */ }
+}
+
 async function swapJarTo(host, owner) {
   const { sessions, mainJars } = await loadLocal();
   const runtime = await loadRuntime();
   const loaded = runtime.loadedJar[host];
 
   const all = await chrome.cookies.getAll({});
+  // current = seluruh isi jar (kedua varian bila ada) agar semua terhitung
+  // untuk dihapus; snapshot = versi bersih satu cookie per slot yang
+  // disimpan ke pemilik sebelumnya.
   const current = cookiesForHost(all, host).map(toStoredCookie);
+  const snapshot = dedupeCookies(current);
 
   if (loaded === undefined) {
     // Ekstensi baru jalan: jar browser saat ini dianggap milik sesi utama.
-    mainJars[host] = current;
+    mainJars[host] = snapshot;
     runtime.loadedJar[host] = MAIN;
     await saveLocal(sessions, mainJars);
     await saveRuntime(runtime.tabSession, runtime.loadedJar);
@@ -64,10 +84,10 @@ async function swapJarTo(host, owner) {
   } else {
     // Simpan isi jar sekarang ke pemilik sebelumnya.
     if (loaded === MAIN) {
-      mainJars[host] = current;
+      mainJars[host] = snapshot;
     } else {
       const prev = sessions.find((s) => s.id === loaded);
-      if (prev) prev.cookies = current;
+      if (prev) prev.cookies = snapshot;
     }
   }
 
@@ -78,9 +98,7 @@ async function swapJarTo(host, owner) {
 
   const { toRemove, toSet } = computeSwap(current, target);
   for (const c of toRemove) {
-    try {
-      await chrome.cookies.remove({ url: cookieUrl(c), name: c.name });
-    } catch { /* abaikan */ }
+    await removeCookieCompletely(c);
   }
   for (const c of toSet) {
     try {
@@ -155,7 +173,7 @@ async function saveCurrentTabAsSession(name) {
   if (!host) throw new Error("Halaman ini tidak bisa disimpan sebagai sesi");
   await ensureJarForTab(tab); // pastikan jar browser == pemilik tab ini
   const all = await chrome.cookies.getAll({});
-  const cookies = cookiesForHost(all, host).map(toStoredCookie);
+  const cookies = dedupeCookies(cookiesForHost(all, host).map(toStoredCookie));
   const { sessions, mainJars } = await loadLocal();
   const site = {
     id: crypto.randomUUID(),
